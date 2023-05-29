@@ -15,6 +15,7 @@ in object oriented programming with the language C.
 The pimpl implementation I use is heavily inspired by Herb Sutter's blog:
 
 https://herbsutter.com/gotw/_100/
+\
 https://herbsutter.com/gotw/_101/
 
 I want to implement an operating system abstraction layer using this idiom and
