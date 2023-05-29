@@ -13,6 +13,7 @@ straight forward solution, which has it's roots in opaque pointers already used
 in object oriented programming with the language C.
 
 The pimpl implementation I use is heavily inspired by Herb Sutter's blog:
+
 https://herbsutter.com/gotw/_100/
 https://herbsutter.com/gotw/_101/
 
@@ -35,3 +36,12 @@ Every OS resource is represented by a class, which provides the interface and
 hides the details using the pimpl-idiom. The resource itself is not created
 during the construction of each class but during the create() call, which must
 be called before every other method.
+
+## Architecture decision records
+
+To document specific architecture and design decisions, I maintain architecture
+decision records following the template of Micheal Nygard:
+
+https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+
+See adr directory for all available ADRs.
