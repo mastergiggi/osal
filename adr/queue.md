@@ -31,6 +31,7 @@ pendency to mutex locks in the C++ thread support library results in a strong
 coupling of these implementations. Therefore friend class declaration chains
 
 Condvar --- is friend of ---> LockGuard       --- is friend of ---> Mutex
+\
 Condvar --- is friend of ---> LockGuard::impl --- is freind of ---> Mutex::impl
 
 are used to fullfill the strong coupling of the thread support library by hiding
