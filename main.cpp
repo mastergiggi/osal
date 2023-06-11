@@ -6,10 +6,30 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
+#include <string_view>
 
 #include "os-thread.hpp"
 #include "os-queue.hpp"
+
+struct Event
+{
+    constexpr Event(const uint32_t id_, const std::string_view name_)
+    : id(id_),
+      name(name_)
+    {
+        std::cout << "Create event id " << id << " (" << name << ")" << std::endl;
+    }
+
+    ~Event()
+    {
+        std::cout << "Destroy event id " << id << " (" << name << ")" << std::endl;
+    }
+
+    const uint32_t id;
+    const std::string_view name;
+};
 
 constexpr OS::Thread::Config threadConfig =
 {
@@ -24,6 +44,7 @@ constexpr OS::Timeout ReceiveTimeoutMs = 2000;
 constexpr OS::Size QueueSize = 5;
 constexpr int NumItems = 10;
 OS::Queue<int> myQueue;
+OS::Queue<std::shared_ptr<Event>> eventQueue;
 
 void send(OS::Thread::Param)
 {
@@ -40,6 +61,9 @@ void send(OS::Thread::Param)
             std::cout << "Append item to queue failed!" << std::endl;
         }
     }
+
+    std::shared_ptr<Event> event = std::make_shared<Event>(666, "EvilEvent");
+    eventQueue.append(event);
 }
 
 void receive(OS::Thread::Param)
@@ -54,6 +78,10 @@ void receive(OS::Thread::Param)
     }
 
     std::cout << "Get from queue timeout" << std::endl;
+
+    std::shared_ptr<Event> event;
+    eventQueue.get(event, ReceiveTimeoutMs);
+    std::cout << "Event ID: " << event->id << " Event name: " << event->name << std::endl;
 }
 
 int main(int, char**)
@@ -62,6 +90,7 @@ int main(int, char**)
     OS::Thread receiver;
 
     myQueue.create(QueueSize);
+    eventQueue.create(QueueSize);
     sender.create(send, nullptr, threadConfig);
     receiver.create(receive, nullptr, threadConfig);
 
