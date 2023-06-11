@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstddef>
 #include <deque>
+#include <memory>
 #include <optional>
 #include <string_view>
 
@@ -58,17 +59,146 @@ public:
         return success;
     }
 
-    bool unique_append(const T&, const Timeout timeout = WaitMax);
-    template<typename ...Args>
-    bool append_emplace(Args && ...args, Timeout timeout = WaitMax);
+    bool unique_append(const T& item, const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
 
-    bool prepend(const T&, const Timeout timeout = WaitMax);
-    bool unique_prepend(const T&, const Timeout timeout = WaitMax);
-    template<typename ...Args>
-    bool prepend_emplace(Args && ...args, Timeout timeout = WaitMax);
+        LockGuard lock(mutex);
 
-    bool peek(T&, const Timeout timeout = WaitMax);
-    std::optional<T> peek(const Timeout timeout = WaitMax);
+        for (typename std::deque<T>::const_iterator iterator = queue->cbegin(); iterator < queue->cend(); ++iterator)
+        {
+            if (*iterator == item)
+            {
+                success = true;
+                break;
+            }
+        }
+
+        if (not success and (size < maxSize))
+        {
+            queue->push_back(item);
+            ++size;
+            condvar.signal();
+            success = true;
+        }
+
+        return success;
+    }
+
+    template<typename ...Args>
+    bool append_emplace(Args && ...args, Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        if (size < maxSize)
+        {
+            queue->emplace_back(T{ std::forward<Args> (args)... });
+            ++size;
+            condvar.signal();
+            success = true;
+        }
+
+        return success;
+    }
+
+    bool prepend(const T& item, const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        if (size < maxSize)
+        {
+            queue->push_front(item);
+            ++size;
+            condvar.signal();
+            success = true;
+        }
+
+        return success;
+    }
+
+    bool unique_prepend(const T& item, const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        for (typename std::deque<T>::const_iterator iterator = queue->cbegin(); iterator < queue->cend(); ++iterator)
+        {
+            if (*iterator == item)
+            {
+                success = true;
+                break;
+            }
+        }
+
+        if (not success and (size < maxSize))
+        {
+            queue->push_front(item);
+            ++size;
+            condvar.signal();
+            success = true;
+        }
+
+        return success;
+    }
+
+    template<typename ...Args>
+    bool prepend_emplace(Args && ...args, Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        if (size < maxSize)
+        {
+            queue->emplace_front(T{ std::forward<Args> (args)... });
+            ++size;
+            condvar.signal();
+            success = true;
+        }
+
+        return success;
+    }
+
+    bool peek(T& item, const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        if (condvar.wait([this]() { return not queue->empty(); }, lock, timeout))
+        {
+            item = queue->front();
+            success = true;
+        }
+
+        return success;
+    }
+
+    std::optional<T> peek(const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        std::optional<T> item{};
+
+        LockGuard lock(mutex);
+
+        if (condvar.wait([this]() { return not queue->empty(); }, lock, timeout))
+        {
+            item = queue->front();
+        }
+
+        return item;
+    }
 
     bool get(T& item, const Timeout timeout = WaitMax)
     {
@@ -88,8 +218,39 @@ public:
         return success;
     }
 
-    std::optional<T> get(const Timeout timeout = WaitMax);
-    bool remove();
+    std::optional<T> get(const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        std::optional<T> item{};
+
+        LockGuard lock(mutex);
+
+        if (condvar.wait([this]() { return not queue->empty(); }, lock, timeout))
+        {
+            item = queue->front();
+            queue->pop_front();
+            --size;
+        }
+
+        return item;
+    }
+
+    bool remove(const Timeout timeout = WaitMax)
+    {
+        assert(queue);
+        bool success = false;
+
+        LockGuard lock(mutex);
+
+        if (condvar.wait([this]() { return not queue->empty(); }, lock, timeout))
+        {
+            queue->pop_front();
+            --size;
+            success = true;
+        }
+
+        return success;
+    }
 
     bool full()
     {
